@@ -89,14 +89,6 @@ Options:
   --version                            Show version information
 ```
 
-## Password File Format
-
-Password file should contain the plaintext password, for example:
-
-```
-mysecretpassword
-```
-
 ## Supported File Formats
 
 - `.cse` - Synology Cloud Sync encrypted files

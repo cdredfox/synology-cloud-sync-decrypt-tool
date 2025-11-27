@@ -58,16 +58,16 @@ sudo cp syndecrypt /usr/local/bin/
 
 ```bash
 # 使用密码解密文件
-syndecrypt -p password.txt -O output/ encrypted_file.cse
+syndecrypt -p mysecretpassword -O output/ encrypted_file.cse
 
 # 使用 RSA 私钥解密文件
 syndecrypt -k private.pem -l public.pem -O output/ encrypted_file.cse
 
 # 解密多个文件
-syndecrypt -p password.txt -O output/ file1.cse file2.cse file3.cse
+syndecrypt -p mysecretpassword -O output/ file1.cse file2.cse file3.cse
 
 # 递归解密整个目录
-syndecrypt -p password.txt -O output/ /path/to/encrypted/directory/
+syndecrypt -p mysecretpassword -O output/ /path/to/encrypted/directory/
 ```
 
 ### 命令行选项
@@ -76,25 +76,17 @@ syndecrypt -p password.txt -O output/ /path/to/encrypted/directory/
 synology-decrypt: Synology Cloud Sync 解密工具
 
 使用:
-  syndecrypt (-p <密码文件> | -k <私钥文件> -l <公钥文件>) -O <输出目录> <加密文件>...
+  syndecrypt (-p <密码> | -k <私钥文件> -l <公钥文件>) -O <输出目录> <加密文件>...
   syndecrypt (-h | --help)
   syndecrypt --version
 
 选项:
   -O <目录> --output-directory=<目录>    输出目录
-  -p <文件> --password-file=<文件>      包含解密密码的文件
+  -p <密码> --password=<密码>            解密密码
   -k <文件> --private-key-file=<文件>  包含解密私钥的文件
   -l <文件> --public-key-file=<文件>    包含解密公钥的文件
   -h --help                           显示帮助信息
   --version                           显示版本信息
-```
-
-## 密码文件格式
-
-密码文件应包含纯文本密码，例如：
-
-```
-mysecretpassword
 ```
 
 ## 支持的文件格式

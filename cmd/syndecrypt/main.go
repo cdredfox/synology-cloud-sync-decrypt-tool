@@ -18,13 +18,13 @@ const version = "1.0.0"
 const usage = `Synology Cloud Sync Decryption Tool
 
 Usage:
-  syndecrypt (-p <password-file> | -k <private-key-file> -l <public-key-file>) -O <output-directory> <encrypted-file>...
+  syndecrypt (-p <password> | -k <private-key-file> -l <public-key-file>) -O <output-directory> <encrypted-file>...
   syndecrypt (-h | --help)
   syndecrypt --version
 
 Options:
   -O <directory> --output-directory=<directory>  Output directory
-  -p <file> --password-file=<file>            File containing decryption password
+  -p <password> --password=<password>            Decryption password
   -k <file> --private-key-file=<file>        File containing decryption private key
   -l <file> --public-key-file=<file>        File containing decryption public key
   -h --help                              Show this help message
@@ -32,13 +32,13 @@ Options:
 
 Examples:
   # Decrypt with password
-  syndecrypt -p password.txt -O output/ encrypted_file.cse
+  syndecrypt -p mysecretpassword -O output/ encrypted_file.cse
 
   # Decrypt with private key
   syndecrypt -k private.pem -l public.pem -O output/ file1.cse file2.cse
 
   # Recursive directory decryption
-  syndecrypt -p password.txt -O output/ /path/to/encrypted/dir/
+  syndecrypt -p mysecretpassword -O output/ /path/to/encrypted/dir/
 
 More information:
   https://github.com/anojht/synology-cloud-sync-decrypt-tool
@@ -70,14 +70,9 @@ func main() {
 	// 创建解密配置
 	var config core.DecryptConfig
 
-	// 检查密码文件
-	if passwordFile, ok := args["--password-file"].(string); ok && passwordFile != "" {
-		password, err := util.ReadBinaryFile(passwordFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read password file: %v\n", err)
-			os.Exit(1)
-		}
-		config.Password = password
+	// 检查密码
+	if password, ok := args["--password"].(string); ok && password != "" {
+		config.Password = []byte(password)
 	}
 
 	// 检查私钥文件
