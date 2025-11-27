@@ -4,11 +4,13 @@
 
 ## 功能特点
 
-- 🚀 高性能的 Go 语言实现
+- 🚀 高性能的 Go 语言实现，比 Python 版本快 2-3 倍
 - 🔐 支持密码和 RSA 私钥解密
 - 📁 支持单个文件、多个文件和目录递归解密
-- 📊 支持进度显示
+- 📊 支持进度显示和详细的结果统计
 - 🔧 跨平台支持 (Linux, macOS, Windows)
+- 💾 低内存占用，流式处理大文件
+- 📦 单个可执行文件，无运行时依赖
 
 ## 安装
 
@@ -37,8 +39,8 @@ pacman -S lz4
 
 ```bash
 # 克隆仓库
-git clone https://github.com/anojht/synology-cloud-sync-decrypt-tool.git
-cd synology-cloud-sync-decrypt-tool/syndecrypt-go
+git clone git@github.com:cdredfox/synology-cloud-sync-decrypt-tool.git
+cd synology-cloud-sync-decrypt-tool
 
 # 下载依赖
 go mod download
@@ -100,19 +102,23 @@ mysecretpassword
 - `.cse` - Synology Cloud Sync 加密文件
 - `.enc` - 通用加密文件
 - `.cloudsync` - Cloud Sync 加密文件
+- `.csenc` - Cloud Sync 加密文件
 
 ## 开发
 
 ### 项目结构
 
 ```
-syndecrypt-go/
-├── cmd/syndecrypt/        # 命令行工具
+.
+├── cmd/syndecrypt/        # 命令行工具入口
 ├── pkg/
-│   ├── core/              # 核心解密算法
-│   ├── files/             # 文件处理
-│   └── util/              # 工具函数
+│   ├── core/              # 核心解密算法 (AES-256-CBC, RSA-OAEP, OpenSSL KDF)
+│   ├── files/             # 文件处理逻辑和结果统计
+│   └── util/              # 工具函数 (LZ4 解压等)
+├── internal/              # 内部实现
+├── test/                  # 测试文件
 ├── go.mod                 # Go 模块文件
+├── LICENSE                # MIT 许可证
 └── README.md
 ```
 
@@ -135,14 +141,15 @@ GOOS=darwin GOARCH=amd64 go build -o syndecrypt-darwin-amd64 cmd/syndecrypt/main
 GOOS=windows GOARCH=amd64 go build -o syndecrypt-windows-amd64.exe cmd/syndecrypt/main.go
 ```
 
-## 性能对比
+## 性能优势
 
 相比 Python 版本，Go 版本具有以下优势：
 
-- 🚀 更快的解密速度（通常快 2-3 倍）
-- 💾 更低的内存占用
-- 🔧 更好的并发支持
-- 📦 单个可执行文件，无需依赖
+- ⚡ **速度更快**: 解密速度通常快 2-3 倍
+- 💾 **内存更低**: 流式处理，内存占用显著减少
+- 🔧 **并发更好**: 原生的并发支持，批量处理更高效
+- 📦 **部署更简单**: 编译后单文件，无 Python 环境依赖
+- 🎯 **性能更稳定**: 静态类型，编译时优化
 
 ## 故障排除
 
@@ -165,7 +172,7 @@ chmod 600 private.pem
 
 ## 许可证
 
-本项目采用 GPLv3 许可证，详见 LICENSE 文件。
+本项目采用 MIT 许可证，详见 LICENSE 文件。
 
 ## 致谢
 
