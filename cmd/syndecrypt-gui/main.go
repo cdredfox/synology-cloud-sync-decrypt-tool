@@ -21,16 +21,19 @@ const version = "1.0.0"
 const appTitle = "Synology Cloud Sync Decrypt Tool"
 
 type guiApp struct {
-	app       fyne.App
-	window    fyne.Window
-	password  *widget.Entry
-	inputPath *widget.Entry
-	outputDir *widget.Entry
-	recursive *widget.Check
-	logView   *widget.List
-	decryptBtn *widget.Button
-	progress  *widget.ProgressBar
-	status    *widget.Label
+	app          fyne.App
+	window       fyne.Window
+	decryptMode  *widget.RadioGroup
+	password     *widget.Entry
+	privateKey   *widget.Entry
+	publicKey    *widget.Entry
+	inputPath    *widget.Entry
+	outputDir    *widget.Entry
+	recursive    *widget.Check
+	logView      *widget.List
+	decryptBtn   *widget.Button
+	progress     *widget.ProgressBar
+	status       *widget.Label
 
 	logEntries []LogEntry
 	isRunning  bool
@@ -56,9 +59,32 @@ func main() {
 }
 
 func (g *guiApp) createUI() {
+	// Decryption mode selection
+	g.decryptMode = widget.NewRadioGroup([]string{"Password", "PEM Certificate"}, nil)
+	g.decryptMode.Horizontal = true
+	g.decryptMode.Required = true
+	g.decryptMode.SetSelected("Password")
+
 	// Password input
 	g.password = widget.NewPasswordEntry()
 	g.password.SetPlaceHolder("Enter decryption password")
+
+	// PEM Certificate inputs
+	g.privateKey = widget.NewEntry()
+	g.privateKey.SetPlaceHolder("Select private key file (.pem)")
+
+	privateKeyBrowseBtn := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		g.browsePrivateKey()
+	})
+	privateKeyContainer := container.NewBorder(nil, nil, nil, privateKeyBrowseBtn, g.privateKey)
+
+	g.publicKey = widget.NewEntry()
+	g.publicKey.SetPlaceHolder("Select public key file (.pem)")
+
+	publicKeyBrowseBtn := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		g.browsePublicKey()
+	})
+	publicKeyContainer := container.NewBorder(nil, nil, nil, publicKeyBrowseBtn, g.publicKey)
 
 	// Input path (file or directory)
 	g.inputPath = widget.NewEntry()
@@ -79,6 +105,25 @@ func (g *guiApp) createUI() {
 	})
 
 	outputEntryContainer := container.NewBorder(nil, nil, nil, outputBrowseBtn, g.outputDir)
+
+	// Certificate section (hide initially)
+	certSection := container.NewVBox(
+		container.NewBorder(nil, nil, widget.NewLabel("Private Key:"), nil, privateKeyContainer),
+		container.NewBorder(nil, nil, widget.NewLabel("Public Key:"), nil, publicKeyContainer),
+	)
+	certSection.Hide()
+
+	// Mode change handler
+	g.decryptMode.OnChanged = func(s string) {
+		if s == "Password" {
+			g.password.Show()
+			certSection.Hide()
+		} else {
+			g.password.Hide()
+			certSection.Show()
+		}
+		g.window.Content().Refresh()
+	}
 
 	// Options
 	g.recursive = widget.NewCheck("Process subdirectories recursively", nil)
@@ -134,6 +179,7 @@ func (g *guiApp) createUI() {
 	// Main form
 	form := &widget.Form{
 		Items: []*widget.FormItem{
+			{Text: "Decryption Mode", Widget: g.decryptMode},
 			{Text: "Password", Widget: g.password},
 			{Text: "Input (File/Dir)", Widget: inputEntryContainer},
 			{Text: "Output Directory", Widget: outputEntryContainer},
@@ -157,6 +203,7 @@ func (g *guiApp) createUI() {
 			widget.NewLabelWithStyle(appTitle, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
 			form,
+			certSection,
 			g.recursive,
 			scrollLog,
 		), // center
@@ -196,6 +243,24 @@ func (g *guiApp) browseInput() {
 	}
 }
 
+func (g *guiApp) browsePrivateKey() {
+	dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+		if err != nil || reader == nil {
+			return
+		}
+		g.privateKey.SetText(reader.URI().Path())
+	}, g.window)
+}
+
+func (g *guiApp) browsePublicKey() {
+	dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+		if err != nil || reader == nil {
+			return
+		}
+		g.publicKey.SetText(reader.URI().Path())
+	}, g.window)
+}
+
 func (g *guiApp) browseOutput() {
 	dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 		if err != nil || uri == nil {
@@ -211,10 +276,46 @@ func (g *guiApp) startDecryption() {
 	}
 
 	// Validate inputs
-	password := g.password.Text
-	if password == "" {
-		dialog.ShowError(fmt.Errorf("please enter password"), g.window)
-		return
+	mode := g.decryptMode.Selected
+	var config core.DecryptConfig
+
+	if mode == "Password" {
+		password := g.password.Text
+		if password == "" {
+			dialog.ShowError(fmt.Errorf("please enter password"), g.window)
+			return
+		}
+		config.Password = []byte(password)
+		g.addLogEntry("Decryption mode: Password", "info")
+	} else {
+		privateKeyPath := g.privateKey.Text
+		publicKeyPath := g.publicKey.Text
+		if privateKeyPath == "" {
+			dialog.ShowError(fmt.Errorf("please select private key file"), g.window)
+			return
+		}
+		if publicKeyPath == "" {
+			dialog.ShowError(fmt.Errorf("please select public key file"), g.window)
+			return
+		}
+
+		// Read key files
+		privateKeyData, err := os.ReadFile(privateKeyPath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to read private key: %v", err), g.window)
+			return
+		}
+		publicKeyData, err := os.ReadFile(publicKeyPath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to read public key: %v", err), g.window)
+			return
+		}
+
+		config.PrivateKey = privateKeyData
+		config.PublicKey = publicKeyData
+		g.addLogEntry("Decryption mode: PEM Certificate", "info")
+		g.addLogEntry(fmt.Sprintf("Private Key: %s", filepath.Base(privateKeyPath)), "info")
+		g.addLogEntry(fmt.Sprintf("Public Key: %s", filepath.Base(publicKeyPath)), "info")
 	}
 
 	inputPath := g.inputPath.Text
@@ -252,10 +353,6 @@ func (g *guiApp) startDecryption() {
 			g.isRunning = false
 			g.setUIEnabled(true)
 		}()
-
-		config := core.DecryptConfig{
-			Password: []byte(password),
-		}
 
 		// Process input
 		info, err := os.Stat(inputPath)
